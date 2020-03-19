@@ -95,7 +95,6 @@ public class RequestHandler extends Thread {
     private void handleOK(byte[] responseBody) throws IOException {
         HttpResponse response = new HttpResponse();
         response.setResponseLine("HTTP/1.1 200 OK");
-        response.addHeader("Content-Type", "text/html;charset=utf-8");
         response.addHeader("Content-Length", String.valueOf(responseBody.length));
         response.setResponseBody(responseBody);
         response.publishTo(out);
@@ -112,7 +111,6 @@ public class RequestHandler extends Thread {
         HttpResponse response = new HttpResponse();
         byte[] responseBody = e.getMessage().getBytes();
         response.setResponseLine("HTTP/1.1 400 Bad Request");
-        response.addHeader("Content-Type", "text/html;charset=utf-8");
         response.addHeader("Content-Length", String.valueOf(responseBody.length));
         response.setResponseBody(responseBody);
         response.publishTo(out);
