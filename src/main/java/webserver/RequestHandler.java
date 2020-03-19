@@ -4,6 +4,7 @@ import db.DataBase;
 import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import util.HttpRequestUtils;
 import webserver.HttpRequest.BadRequestException;
 
 import java.io.*;
@@ -42,10 +43,11 @@ public class RequestHandler extends Thread {
             String method = request.getMethod();
             String path = request.getPath();
             if (method.equals("GET")) {
-                if (path.equals("/user/create")) {
-                    handleGetSignup(request);
-                }
                 handleGetRequest(request);
+            } else if (method.equals("POST")){
+                if (path.equals("/user/create")) {
+                    handlePostSignup(request);
+                }
             } else {
                 handleNotImplemented();
             }
@@ -66,21 +68,21 @@ public class RequestHandler extends Thread {
         }
     }
 
-    private void handleGetSignup(HttpRequest request) throws IOException {
-        User newUser = createUserWith(getValidatedQueriesFrom(request));
+    private void handlePostSignup(HttpRequest request) throws IOException {
+        User newUser = createUserWith(getValidatedKeyValuePairsFrom(request));
         DataBase.addUser(newUser);
         byte[] responseBody = newUser.toString().getBytes();
         handleOK(responseBody);
     }
 
-    private Map<String, String> getValidatedQueriesFrom(HttpRequest request) {
-        Map<String, String> queries = request.getQueries();
-        if (queries == null) {
+    private Map<String, String> getValidatedKeyValuePairsFrom(HttpRequest request) {
+        Map<String, String> keyValuePairs = HttpRequestUtils.parseQueryString(request.getRequestBody());
+        if (keyValuePairs == null) {
             throw new BadRequestException("No values for signup.");
-        } else if (queries.get("userId") == null) {
+        } else if (keyValuePairs.get("userId") == null) {
             throw new BadRequestException("User ID must not be blank.");
         }
-        return queries;
+        return keyValuePairs;
     }
 
     private User createUserWith(Map<String, String> queries) {
