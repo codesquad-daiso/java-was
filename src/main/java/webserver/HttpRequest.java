@@ -5,19 +5,20 @@ import util.HttpRequestUtils.Pair;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.net.URLDecoder;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class HttpRequest {
     private String method;
-    private String url;
+    private String path;
+    private Map<String, String> queries;
     private String protocol;
     private List<Pair> requestHeaders;
     private String requestBody;
 
-    public HttpRequest(BufferedReader in) {
-        requestHeaders = new ArrayList<>();
+    public HttpRequest(BufferedReader in) throws IOException {
         readRequestLine(in);
         readHeaders(in);
         readBody(in);
@@ -27,8 +28,12 @@ public class HttpRequest {
         return method;
     }
 
-    public String getUrl() {
-        return url;
+    public String getPath() {
+        return path;
+    }
+
+    public Map<String, String> getQueries() {
+        return queries;
     }
 
     public String getProtocol() {
@@ -43,43 +48,54 @@ public class HttpRequest {
         return requestBody;
     }
 
-    private void readRequestLine(BufferedReader in) {
-        try {
-            String[] requestLine = in.readLine().split(" ");
-            this.method = requestLine[0];
-            String url = requestLine[1];
-            if (url.equals("/")) {
-                url = "index.html";
+    private void readRequestLine(BufferedReader in) throws IOException {
+        parseRequestLine(readValidRequestLine(in));
+    }
+
+    private String[] readValidRequestLine(BufferedReader in) throws IOException {
+        String requestLine = in.readLine();
+        if (requestLine != null) {
+            requestLine = URLDecoder.decode(requestLine, "UTF-8");
+            String[] splitRequestLine = requestLine.split(" ");
+            if (splitRequestLine.length == 3) {
+                return splitRequestLine;
             }
-            this.url = url;
-            this.protocol = requestLine[2];
-        } catch (IOException e) {
-            e.printStackTrace();
+        }
+        throw new BadRequestException("Invalid request line.");
+    }
+
+    private void parseRequestLine(String[] requestLine) {
+        this.method = requestLine[0];
+        parseUrl(requestLine[1]);
+        this.protocol = requestLine[2];
+    }
+
+    private void parseUrl(String url) {
+        if (url.equals("/")) {
+            url = "index.html";
+        }
+        String[] splitUrl = url.split("\\?");
+        this.path = splitUrl[0];
+        if (splitUrl.length == 2) {
+            String queryString = splitUrl[1];
+            this.queries = HttpRequestUtils.parseQueryString(queryString);
         }
     }
 
-    private void readHeaders(BufferedReader in) {
-        try {
-            String line = "";
-            while (!(line = in.readLine()).equals("")) { // \r\n is removed
-                requestHeaders.add(HttpRequestUtils.parseHeader(line));
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+    private void readHeaders(BufferedReader in) throws IOException {
+        requestHeaders = new ArrayList<>();
+        String line;
+        while ((line = in.readLine()) != null && !line.equals("")) {
+            requestHeaders.add(HttpRequestUtils.parseHeader(line));
         }
     }
 
-    private void readBody(BufferedReader in) {
-        if (!method.equals("GET")) { // or other HTTP methods that don't have a body
+    private void readBody(BufferedReader in) throws IOException {
+        if (getContentLength() != -1) {
             int contentLength = getContentLength();
             char[] requestBody = new char[contentLength];
-            try {
-                int numCharsRead = in.read(requestBody, 0, contentLength);
-                // TODO: exception handling - numCharsRead must be equal to contentLength
-                this.requestBody = Arrays.toString(requestBody);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            in.read(requestBody, 0, contentLength);
+            this.requestBody = URLDecoder.decode(new String(requestBody), "UTF-8");
         }
     }
 
@@ -89,6 +105,12 @@ public class HttpRequest {
                 return Integer.parseInt(requestHeader.getValue());
             }
         }
-        return -1; // TODO: exception handling
+        return -1;
+    }
+
+    public static class BadRequestException extends RuntimeException {
+        public BadRequestException(String message) {
+            super(message);
+        }
     }
 }

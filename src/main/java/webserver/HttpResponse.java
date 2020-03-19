@@ -6,11 +6,10 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringJoiner;
 
 public class HttpResponse {
-    private String protocol;
-    private String statusCode;
-    private String reasonPhrase;
+    private String responseLine;
     private List<Pair> responseHeaders;
     private byte[] responseBody;
 
@@ -18,20 +17,8 @@ public class HttpResponse {
         responseHeaders = new ArrayList<>();
     }
 
-    public void setProtocol(String protocol) {
-        this.protocol = protocol;
-    }
-
-    public void setStatusCode(String statusCode) {
-        this.statusCode = statusCode;
-    }
-
-    public void setReasonPhrase(String reasonPhrase) {
-        this.reasonPhrase = reasonPhrase;
-    }
-
-    public void setResponseHeaders(List<Pair> responseHeaders) {
-        this.responseHeaders = responseHeaders;
+    public void setResponseLine(String responseLine) {
+        this.responseLine = responseLine;
     }
 
     public void setResponseBody(byte[] responseBody) {
@@ -43,35 +30,30 @@ public class HttpResponse {
         responseHeaders.add(header);
     }
 
-    public void publish(DataOutputStream out) throws IOException {
+    public void publishTo(DataOutputStream out) throws IOException {
         writeResponseLine(out);
         writeHeaders(out);
-        if (responseBody != null) {
-            out.write(responseBody);
-        }
+        writeBody(out);
         out.flush();
     }
 
     private void writeResponseLine(DataOutputStream out) throws IOException {
-        StringBuilder responseLineBuilder = new StringBuilder();
-        responseLineBuilder.append(protocol);
-        responseLineBuilder.append(" ");
-        responseLineBuilder.append(statusCode);
-        responseLineBuilder.append(" ");
-        responseLineBuilder.append(reasonPhrase);
-        responseLineBuilder.append("\r\n");
-        out.writeBytes(responseLineBuilder.toString());
+        out.writeBytes(responseLine + "\r\n");
     }
 
     private void writeHeaders(DataOutputStream out) throws IOException {
         for (Pair header : responseHeaders) {
-            StringBuilder headerBuilder = new StringBuilder();
-            headerBuilder.append(header.getKey());
-            headerBuilder.append(": ");
-            headerBuilder.append(header.getValue());
-            headerBuilder.append("\r\n");
-            out.writeBytes(headerBuilder.toString());
+            StringJoiner headerJoiner = new StringJoiner(": ", "", "\r\n");
+            headerJoiner.add(header.getKey());
+            headerJoiner.add(header.getValue());
+            out.writeBytes(headerJoiner.toString());
         }
         out.writeBytes("\r\n");
+    }
+
+    private void writeBody(DataOutputStream out) throws IOException {
+        if (responseBody != null) {
+            out.write(responseBody);
+        }
     }
 }
