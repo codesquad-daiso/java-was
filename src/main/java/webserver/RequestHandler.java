@@ -71,8 +71,7 @@ public class RequestHandler extends Thread {
     private void handlePostSignup(HttpRequest request) throws IOException {
         User newUser = createUserWith(getValidatedKeyValuePairsFrom(request));
         DataBase.addUser(newUser);
-        byte[] responseBody = newUser.toString().getBytes();
-        handleOK(responseBody);
+        handleSeeOther("/");
     }
 
     private Map<String, String> getValidatedKeyValuePairsFrom(HttpRequest request) {
@@ -99,6 +98,13 @@ public class RequestHandler extends Thread {
         response.addHeader("Content-Type", "text/html;charset=utf-8");
         response.addHeader("Content-Length", String.valueOf(responseBody.length));
         response.setResponseBody(responseBody);
+        response.publishTo(out);
+    }
+
+    private void handleSeeOther(String location) throws IOException {
+        HttpResponse response = new HttpResponse();
+        response.setResponseLine("HTTP/1.1 303 See Other");
+        response.addHeader("Location", location);
         response.publishTo(out);
     }
 
