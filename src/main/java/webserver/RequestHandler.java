@@ -47,6 +47,8 @@ public class RequestHandler extends Thread {
             } else if (method.equals("POST")){
                 if (path.equals("/user/create")) {
                     handlePostSignup(request);
+                } else if (path.equals("/user/login")) {
+                    handleLogin(request);
                 }
             } else {
                 handleNotImplemented();
@@ -72,6 +74,34 @@ public class RequestHandler extends Thread {
         User newUser = createUserWith(getValidatedKeyValuePairsFrom(request));
         DataBase.addUser(newUser);
         handleSeeOther("/");
+    }
+
+    private void handleLogin(HttpRequest request) throws IOException {
+        Map<String, String> loginInfo = getValidatedKeyValuePairsFrom(request);
+        String userId = loginInfo.get("userId");
+        String password = Optional.ofNullable(loginInfo.get("password")).orElse("");
+        User user = DataBase.findUserById(userId);
+        if (user != null && user.getPassword().equals(password)) {
+            handleLoginSuccess();
+        } else {
+            handleLoginFail();
+        }
+    }
+
+    private void handleLoginSuccess() throws IOException {
+        HttpResponse response = new HttpResponse();
+        response.setResponseLine("HTTP/1.1 303 See Other");
+        response.addHeader("Location", "/");
+        response.addHeader("Set-Cookie", "logined=true; Path=/");
+        response.publishTo(out);
+    }
+
+    private void handleLoginFail() throws IOException {
+        HttpResponse response = new HttpResponse();
+        response.setResponseLine("HTTP/1.1 303 See Other");
+        response.addHeader("Location", "/user/login_failed.html");
+        response.addHeader("Set-Cookie", "logined=false; Path=/");
+        response.publishTo(out);
     }
 
     private Map<String, String> getValidatedKeyValuePairsFrom(HttpRequest request) {
