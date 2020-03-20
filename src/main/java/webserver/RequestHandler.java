@@ -12,6 +12,7 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 
@@ -43,8 +44,15 @@ public class RequestHandler extends Thread {
             String method = request.getMethod();
             String path = request.getPath();
             if (method.equals("GET")) {
+                if (path.equals("/user/list.html")) {
+                    if (request.isLoggedIn()) {
+                        handleUserList();
+                    } else {
+                        handleSeeOther("/user/login.html");
+                    }
+                }
                 handleGetRequest(request);
-            } else if (method.equals("POST")){
+            } else if (method.equals("POST")) {
                 if (path.equals("/user/create")) {
                     handlePostSignup(request);
                 } else if (path.equals("/user/login")) {
@@ -92,15 +100,15 @@ public class RequestHandler extends Thread {
         HttpResponse response = new HttpResponse();
         response.setResponseLine("HTTP/1.1 303 See Other");
         response.addHeader("Location", "/");
-        response.addHeader("Set-Cookie", "logined=true; Path=/");
-        response.publishTo(out);
+        response.addHeader("Set-Cookie", "loggedIn=true; Path=/");
+        response.publishTo(out); //http and tcp.port == 8080;
     }
 
     private void handleLoginFail() throws IOException {
         HttpResponse response = new HttpResponse();
         response.setResponseLine("HTTP/1.1 303 See Other");
         response.addHeader("Location", "/user/login_failed.html");
-        response.addHeader("Set-Cookie", "logined=false; Path=/");
+        response.addHeader("Set-Cookie", "loggedIn=false; Path=/");
         response.publishTo(out);
     }
 
@@ -162,5 +170,27 @@ public class RequestHandler extends Thread {
         HttpResponse response = new HttpResponse();
         response.setResponseLine("HTTP/1.1 501 Not Implemented");
         response.publishTo(out);
+    }
+
+    private void handleUserList() throws IOException {
+        String userInfo = hardBars();
+        Path path = new File("webapp", "/user/list.html").toPath();
+        String usersListPagesHtml = new String(Files.readAllBytes(path));
+        String usersList = usersListPagesHtml.replace("{{users}}", userInfo);
+        byte[] responseBody = usersList.getBytes();
+        handleOK(responseBody);
+    }
+
+    private String hardBars() {
+        Collection<User> users = DataBase.findAll();
+        StringBuilder sb = new StringBuilder();
+        for (User user : users) {
+            sb.append("<tr>");
+            sb.append("<td>").append(user.getUserId()).append("</td>");
+            sb.append("<td>").append(Optional.ofNullable(user.getName()).orElse("")).append("</td>");
+            sb.append("<td>").append(Optional.ofNullable(user.getEmail()).orElse("")).append("</td>");
+            sb.append("</tr>");
+        }
+        return sb.toString();
     }
 }

@@ -48,6 +48,11 @@ public class HttpRequest {
         return requestBody;
     }
 
+    public boolean isLoggedIn() {
+        String cookie = getHeaderValueByName("Cookie");
+        return cookie != null && cookie.contains("loggedIn=true");
+    }
+
     private void readRequestLine(BufferedReader in) throws IOException {
         parseRequestLine(readValidRequestLine(in));
     }
@@ -90,22 +95,23 @@ public class HttpRequest {
         }
     }
 
+    private String getHeaderValueByName(String headerName) {
+        for (Pair requestHeader : requestHeaders) {
+            if (requestHeader.getKey().equals(headerName)) {
+                return requestHeader.getValue();
+            }
+        }
+        return null;
+    }
+
     private void readBody(BufferedReader in) throws IOException {
-        if (getContentLength() != -1) {
-            int contentLength = getContentLength();
+        String headerValue = getHeaderValueByName("Content-Length");
+        if (headerValue != null) {
+            int contentLength = Integer.parseInt(headerValue);
             char[] requestBody = new char[contentLength];
             in.read(requestBody, 0, contentLength);
             this.requestBody = URLDecoder.decode(new String(requestBody), "UTF-8");
         }
-    }
-
-    private int getContentLength() {
-        for (Pair requestHeader : requestHeaders) {
-            if (requestHeader.getKey().equals("Content-Length")) {
-                return Integer.parseInt(requestHeader.getValue());
-            }
-        }
-        return -1;
     }
 
     public static class BadRequestException extends RuntimeException {
